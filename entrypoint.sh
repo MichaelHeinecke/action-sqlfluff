@@ -117,6 +117,23 @@ elif [[ "${SQLFLUFF_COMMAND}" == "fix" ]]; then
   echo '::group:: Running sqlfluff 🐶 ...'
   # Allow failures now, as reviewdog handles them
   set +Eeuo pipefail
+
+  # As fix mode will return 0 as exit code if there are issues found, run lint command to get non-zero exit code if
+  # there are any issues found. This will allow failing the PR check.
+  # shellcheck disable=SC2086,SC2046
+  sqlfluff lint \
+    $(if [[ "x${SQLFLUFF_CONFIG}" != "x" ]]; then echo "--config ${SQLFLUFF_CONFIG}"; fi) \
+    $(if [[ "x${SQLFLUFF_DIALECT}" != "x" ]]; then echo "--dialect ${SQLFLUFF_DIALECT}"; fi) \
+    $(if [[ "x${SQLFLUFF_PROCESSES}" != "x" ]]; then echo "--processes ${SQLFLUFF_PROCESSES}"; fi) \
+    $(if [[ "x${SQLFLUFF_RULES}" != "x" ]]; then echo "--rules ${SQLFLUFF_RULES}"; fi) \
+    $(if [[ "x${SQLFLUFF_EXCLUDE_RULES}" != "x" ]]; then echo "--exclude-rules ${SQLFLUFF_EXCLUDE_RULES}"; fi) \
+    $(if [[ "x${SQLFLUFF_TEMPLATER}" != "x" ]]; then echo "--templater ${SQLFLUFF_TEMPLATER}"; fi) \
+    $(if [[ "x${SQLFLUFF_DISABLE_NOQA}" != "x" ]]; then echo "--disable-noqa ${SQLFLUFF_DISABLE_NOQA}"; fi) \
+    $(if [[ "x${SQLFLUFF_DIALECT}" != "x" ]]; then echo "--dialect ${SQLFLUFF_DIALECT}"; fi) \
+    $changed_files
+  sqlfluff_exit_code=$?
+  echo "name=sqlfluff-exit-code::${sqlfluff_exit_code}" >> $GITHUB_OUTPUT
+
   # shellcheck disable=SC2086,SC2046
   sqlfluff fix --force \
     $(if [[ "x${SQLFLUFF_CONFIG}" != "x" ]]; then echo "--config ${SQLFLUFF_CONFIG}"; fi) \
@@ -128,8 +145,6 @@ elif [[ "${SQLFLUFF_COMMAND}" == "fix" ]]; then
     $(if [[ "x${SQLFLUFF_DISABLE_NOQA}" != "x" ]]; then echo "--disable-noqa ${SQLFLUFF_DISABLE_NOQA}"; fi) \
     $(if [[ "x${SQLFLUFF_DIALECT}" != "x" ]]; then echo "--dialect ${SQLFLUFF_DIALECT}"; fi) \
     $changed_files
-  sqlfluff_exit_code=$?   
-  echo "name=sqlfluff-exit-code::${sqlfluff_exit_code}" >> $GITHUB_OUTPUT
   
   set -Eeuo pipefail
   echo '::endgroup::'
@@ -160,7 +175,6 @@ elif [[ "${SQLFLUFF_COMMAND}" == "fix" ]]; then
   echo '::endgroup::'
 
   exit $sqlfluff_exit_code
-  # exit $exit_code
 # END OF fix
 else
   echo 'ERROR: SQLFLUFF_COMMAND must be one of lint and fix'
